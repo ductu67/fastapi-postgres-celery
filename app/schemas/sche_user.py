@@ -25,7 +25,7 @@ class UserItemResponse(UserBase):
 
 
 class Login(BaseModel):
-    username_id: str
+    email: str
     password: str
 
 
@@ -63,3 +63,8 @@ class UserUpdateRequest(BaseModel):
     password: Optional[str]
     is_active: Optional[bool] = True
     role: Optional[UserRole]
+
+
+class TokenData(BaseModel):
+    user_id: str
+    email: str

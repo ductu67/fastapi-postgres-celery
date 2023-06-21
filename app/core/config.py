@@ -10,10 +10,12 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 class Settings(BaseSettings):
     PROJECT_NAME = os.getenv('PROJECT_NAME', 'FASTAPI_BASE')
     SECRET_KEY = os.getenv('SECRET_KEY', '')
+    REFRESH_KEY = os.getenv('REFRESH_KEY', '')
     API_PREFIX = ''
     BACKEND_CORS_ORIGINS = ['*']
     DATABASE_URL = os.getenv('SQL_DATABASE_URL', '')
     ACCESS_TOKEN_EXPIRE_SECONDS: int = 60 * 60 * 24 * 7  # Token expired after 7 days
+    REFRESH_TOKEN_EXPIRE_SECONDS: int = 60 * 60 * 24 * 7  # Token expired after 7 days
     SECURITY_ALGORITHM = 'HS256'
     LOGGING_CONFIG_FILE = os.path.join(BASE_DIR, "logging.ini")
     FCM_SERVER_KEY: str = os.getenv("FCM_SERVER_KEY")

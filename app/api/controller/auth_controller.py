@@ -1,7 +1,7 @@
 import logging
 
 from botocore.exceptions import ClientError
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.api.service import auth_service
 from app.schemas.sche_user import Login, Register
@@ -34,3 +34,15 @@ async def register(user_create: Register):
         logging.error("===>>> Error register <<<===")
         logging.error(e)
         handle_exception.sign_up_exception(e, user_create)
+
+
+@router.get(Route.V1.REFRESH)
+async def refresh(token: str):
+    logging.info("===>>> auth_controller.py <<<===")
+    logging.info("===>>> function refresh <<<===")
+    try:
+        return await auth_service.get_new_access_token(token=token)
+    except ClientError or Exception as e:
+        logging.error("===>>> Error refresh <<<===")
+        logging.error(e)
+        raise HTTPException(status_code=400, detail=str(e))

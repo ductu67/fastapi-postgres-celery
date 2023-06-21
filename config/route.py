@@ -10,6 +10,7 @@ class Route:
         #         Auth
         LOGIN = "/login"
         REGISTER = "/register"
+        REFRESH = "/refresh"
 
         #         Project
         GET_LIST_PROJECT = "/project"

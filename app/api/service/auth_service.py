@@ -5,15 +5,18 @@ from typing import Optional
 import jwt
 from botocore.exceptions import ClientError
 from fastapi import Depends, HTTPException
+from fastapi.encoders import jsonable_encoder
 from fastapi.security import HTTPBearer
 from fastapi_sqlalchemy import db
 from pydantic import ValidationError
 from starlette import status
 
 from app.core.config import settings
-from app.core.security import create_access_token, get_password_hash, verify_password
+from app.core.security import create_access_token, get_password_hash, verify_password, verify_refresh_token, \
+    create_refresh_token
 from app.helpers.exception_handler import CustomException
 from app.models import User
+from app.models.model_user import RefreshToken
 from app.schemas.sche_token import TokenPayload
 from app.schemas.sche_user import (
     Login,
@@ -28,17 +31,43 @@ from config.messages_constant import ErrorCode
 async def login(user: Login):
     logging.info("===>>> auth_service.py <<<===")
     logging.info("===>>> function login <<<===")
-    user = UserService().authenticate(email=user.username_id, password=user.password)
+    user = UserService().authenticate(email=user.email, password=user.password)
     if not user:
         raise CustomException(http_code=400, code=ErrorCode.MSG_INVALID_EMAIL_PASSWORD["code"],
                               message=ErrorCode.MSG_INVALID_EMAIL_PASSWORD["message"])
     elif not user.is_active:
         raise CustomException(http_code=404, code=ErrorCode.MSG_ACTIVE_USER["code"],
                               message=ErrorCode.MSG_ACTIVE_USER["message"])
+    refresh_token_check = db.session.query(RefreshToken).filter(RefreshToken.user_id == user.id)
+    if refresh_token_check.first():
+        refresh_token_check.delete()
+        db.session.commit()
+
+    access_token = create_access_token({"email": user.email, "user_id": user.id})
+    refresh_token = create_refresh_token({"email": user.email, "user_id": user.id})
 
     user.last_login = datetime.now()
     db.session.commit()
-    return {"access_token": create_access_token(user_id=user.id)}
+    refresh_token_dict = {
+        "user_id": user.id,
+        "refresh_token": refresh_token,
+    }
+    refresh_token_db_data = RefreshToken(**refresh_token_dict)
+    db.session.add(refresh_token_db_data)
+    db.session.commit()
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+    }
+
+
+async def get_new_access_token(token: str):
+    refresh_data = verify_refresh_token(token)
+    new_access_token = create_access_token(refresh_data.dict())
+    return {
+        "access_token": new_access_token,
+    }
 
 
 async def register(user_create: Register):
@@ -78,9 +107,11 @@ class UserService(object):
         """
         user = db.session.query(User).filter_by(email=email).first()
         if not user:
-            return None
+            raise CustomException(http_code=400, code=ErrorCode.MSG_INVALID_EMAIL_PASSWORD["code"],
+                                  message=ErrorCode.MSG_INVALID_EMAIL_PASSWORD["message"])
         if not verify_password(password, user.hashed_password):
-            return None
+            raise CustomException(http_code=400, code=ErrorCode.MSG_INVALID_EMAIL_PASSWORD["code"],
+                                  message=ErrorCode.MSG_INVALID_EMAIL_PASSWORD["message"])
         return user
 
     @staticmethod
